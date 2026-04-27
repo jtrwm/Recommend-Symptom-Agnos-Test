@@ -17,14 +17,14 @@
    - โอกาสน้อย วิเคราะห์เปรียบเทียบจากฐานข้อมูลทั้งหมด
 4. Strict Gender Isolation
    - ป้องกันความผิดพลาดทางการแพทย์ (Medical Error) โดยยึดหลักไม่นำข้อมูลอาการของเพศตรงข้ามมาคำนวณร่วมด้วยในโอกาสสูงมาก และโอกาสปานกลาง
-5. Interactive UI / UX:**
+5. Interactive UI / UX:
    - ใช้ไลบรารี Select2 แปลงช่องกรอกข้อความธรรมดา ให้เป็น Searchable Dropdown
    - รองรับการพิมพ์ค้นหาทั้งภาษาไทยและภาษาอังกฤษแบบเว้นวรรค เช่น Animal bite
 
 ## Tech Stack
-- Backend : Python (FastAPI) - เลือกใช้ FastAPI เพราะประมวลผลเร็ว รองรับ Pydantic ข้อมูลมีโครงสร้างชัดเจน
-- Data Engine : Pandas, JSON, difflib - สำหรับจัดการและทำความสะอาด Data Pipeline
-- Frontend : HTML, CSS, JavaScript 
+- Backend: Python (FastAPI) - เลือกใช้ FastAPI เพราะประมวลผลเร็ว รองรับ Pydantic ข้อมูลมีโครงสร้างชัดเจน
+- Data Engine: Pandas, JSON, difflib - สำหรับจัดการและทำความสะอาด Data Pipeline
+- Frontend: HTML, CSS, JavaScript 
 
 ## วิธีการติดตั้งและรันระบบ
 1. เตรียม Environment และติดตั้งไลบรารี เปิด Terminal และติดตั้งไลบรารีที่จำเป็นทั้งหมดผ่านไฟล์ requirements.txt:
