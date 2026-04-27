@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agnos - Symptom Recommender</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 50px; }
+        .container { background: white; width: 100%; max-width: 450px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: #2c3e50; margin-top: 0; }
+        label { font-weight: bold; font-size: 14px; color: #34495e; display: block; margin-bottom: 5px; margin-top: 15px; }
+        input, select, button { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ced4da; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #0056b3; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 25px; transition: 0.3s; }
+        button:hover { background-color: #004494; }
+        #result { margin-top: 25px; padding: 15px; background-color: #e9f7ef; border-left: 5px solid #28a745; display: none; border-radius: 4px; color: #155724; line-height: 1.6;}
+        .select2-container .select2-selection--multiple { min-height: 42px; border: 1px solid #ced4da; border-radius: 6px; padding: 2px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ประเมินอาการป่วยเบื้องต้น</h2>
+        
+        <label for="gender">เพศ</label>
+        <select id="gender">
+            <option value="Male">ชาย</option>
+            <option value="Female">หญิง</option>
+        </select>
+
+        <label for="age">อายุ (ปี)</label>
+        <input type="number" id="age" placeholder="ระบุอายุเป็นปี" required>
+
+        <label for="symptoms">อาการปัจจุบัน (ค้นหาได้หลายอาการ)</label>
+        <select id="symptoms" multiple="multiple" required></select>
+
+        <button onclick="getRecommendation()">วิเคราะห์อาการ</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function loadSymptoms() {
+            const symptomSelect = $('#symptoms');
+            try {
+                const response = await fetch('http://127.0.0.1:8000/symptoms-list');
+                const data = await response.json();
+                
+                symptomSelect.empty();
+
+                const uniqueSymptoms = new Set();
+                data.symptoms.forEach(symp => {
+                    const tokens = symp.split(/[,;]+/);
+                    tokens.forEach(t => {
+                        if(t.trim()) uniqueSymptoms.add(t.trim());
+                    });
+                });
+
+                Array.from(uniqueSymptoms)
+                    .sort((a, b) => a.localeCompare(b, 'th'))
+                    .forEach(symp => {
+                        symptomSelect.append(new Option(symp, symp));
+                    });
+
+                symptomSelect.select2({
+                    placeholder: "พิมพ์เพื่อค้นหาอาการ เช่น ไอ, มีไข้, ปวดหัว...",
+                    tags: true, 
+                    tokenSeparators: [',', ' ']
+                });
+
+            } catch (error) {
+                console.error("ไม่สามารถโหลดรายชื่ออาการได้:", error);
+            }
+        }
+
+        $(document).ready(function() {
+            loadSymptoms();
+        });
+
+        async function getRecommendation() {
+            const gender = document.getElementById('gender').value;
+            const ageInput = document.getElementById('age').value;
+            const symptoms = $('#symptoms').val();
+
+            if (!ageInput || !symptoms || symptoms.length === 0) {
+                alert("กรุณาระบุอายุและเลือกอาการอย่างน้อย 1 อย่างครับ");
+                return;
+            }
+
+            const age = parseInt(ageInput);
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = "<em>กำลังวิเคราะห์ข้อมูล...</em>";
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gender: gender, age: age, symptoms: symptoms })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultDiv.innerHTML = `<strong>ผลการประเมิน:</strong> <br><span style="color:#b52020;">${data.message}</span>`;
+                    return;
+                }
+
+                if (data.tier_1.length === 0 && data.tier_2.length === 0 && data.tier_3.length === 0) {
+                    resultDiv.innerHTML = `<strong>ผลการประเมิน:</strong> <br>ไม่พบข้อมูลอาการแทรกซ้อนอื่น ๆ ที่สัมพันธ์กัน`;
+                    return;
+                }
+
+                let html = `<strong>ผลการวิเคราะห์อาการแทรกซ้อน</strong><br><br>`;
+                
+                html += `<strong style="color:#b52020;">โอกาสสูงมาก (กลุ่มประชากรเดียวกัน)</strong><br>`;
+                if(data.tier_1.length > 0) {
+                    data.tier_1.forEach(s => html += `&nbsp;&nbsp;&nbsp;- ${s}<br>`);
+                } else {
+                    html += `&nbsp;&nbsp;&nbsp;<em>(ไม่พบข้อมูลในกลุ่มนี้)</em><br>`;
+                }
+
+                html += `<br><strong style="color:#d98831;">โอกาสปานกลาง (กลุ่มประชากรข้างเคียง)</strong><br>`;
+                if(data.tier_2.length > 0) {
+                    data.tier_2.forEach(s => html += `&nbsp;&nbsp;&nbsp;- ${s}<br>`);
+                } else {
+                    html += `&nbsp;&nbsp;&nbsp;<em>(ไม่พบข้อมูลเพิ่มเติมในกลุ่มนี้)</em><br>`;
+                }
+
+                html += `<br><strong style="color:#3175b1;">โอกาสน้อย (พบในกลุ่มประชากรอื่นๆ)</strong><br>`;
+                if(data.tier_3.length > 0) {
+                    data.tier_3.forEach(s => html += `&nbsp;&nbsp;&nbsp;- ${s}<br>`);
+                } else {
+                    html += `&nbsp;&nbsp;&nbsp;<em>(ไม่พบข้อมูลเพิ่มเติม)</em><br>`;
+                }
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color:red;">เกิดข้อผิดพลาดในการเชื่อมต่อ API</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
